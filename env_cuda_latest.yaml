@@ -1,0 +1,25 @@
+name: flora
+channels:
+  - pytorch
+  - nvidia
+  - defaults
+dependencies:
+  - pip=22
+  - pandas
+  - scikit-learn
+  - scipy
+  - ujson
+  - h5py
+  - seaborn
+  - matplotlib
+  - transformers
+  - tqdm
+  - pip:
+    - torch
+    - torchvision
+    - calmsize
+    - memory-profiler
+    - opacus
+    - portalocker
+    - cvxpy
+    - gdown
