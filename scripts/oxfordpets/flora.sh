@@ -1,3 +1,4 @@
+#!/bin/bash
 # Practical non-IID scenario
 # FLoRA
 

@@ -1,3 +1,4 @@
+#!/bin/bash
 # Pathological non-IID few-shot scenario
 # FLoRA
 

@@ -48,7 +48,7 @@ After generating and partitioning dataset for clients, we can run the training a
 ### Examples for **FLoRA** on **Caltech101** with **IID few-shot** scenario
 ```
 cd ./scripts/caltech101
-sh flora.sh
+bash flora.sh
 ```
 
 ## Parameters

@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 def read_data(dataset, idx, is_train=True):
     if is_train:
         current_directory = os.getcwd()
-        print("Current Working Directory:", current_directory)
+        # print("Current Working Directory:", current_directory)
         
         train_data_dir = os.path.join('../dataset', dataset, 'train/')
 

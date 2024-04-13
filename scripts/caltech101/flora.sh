@@ -1,3 +1,4 @@
+#!/bin/bash
 # IID few-shot scenario
 # FLoRA
 

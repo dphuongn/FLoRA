@@ -1,5 +1,7 @@
+#!/bin/bash
 # IID few-shot scenario
 # FedVM-LC
+
 
 cd ../../system/
 
