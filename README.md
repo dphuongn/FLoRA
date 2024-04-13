@@ -63,10 +63,10 @@ sh flora.sh
 | `did`     | GPU device ID (default: `0`). |
 | `nc`      | Number of clients. |
 | `lbs`     | Batch size. |
-| `lora_rank`               | The LoRA rank for **FedLoRA**.|
-| `lora_alpha`              | The LoRA scaling factor for **FedLoRA**.|
-| `lora_projection_text`    | LoRA apply to projection text for **FedLoRA**.|
-| `lora_projection_vision`  | LoRA apply to projection vision for **FedLoRA**.|
+| `lora_rank`               | The LoRA rank for **FLoRA**.|
+| `lora_alpha`              | The LoRA scaling factor for **FLoRA**.|
+| `lora_projection_text`    | LoRA apply to projection text for **FLoRA**.|
+| `lora_projection_vision`  | LoRA apply to projection vision for **FLoRA**.|
 | `sd`      | The initial seed. |
 
 
