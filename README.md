@@ -45,10 +45,10 @@ We provide **16** popular datasets: **Fashion-MNIST (F-MNIST)**, **CIFAR-10**, *
 
 After generating and partitioning dataset for clients, we can run the training and evaluation. All codes corresponding to **FLoRA** and other baselines: **FedFFT**, **FedLC**, **FedVM-LC**, and **FedAA** are stored in `./script`. Different folder corresponds with that specific dataset.
 
-### Examples for **FLoRA** on **Caltech101** with IID few-shot scenario
+### Examples for **FLoRA** on **Caltech101** with **IID few-shot** scenario
 ```
 cd ./scripts/caltech101
-sh fedlora.sh
+sh flora.sh
 ```
 
 ## Parameters
@@ -63,8 +63,10 @@ sh fedlora.sh
 | `did`     | GPU device ID (default: `0`). |
 | `nc`      | Number of clients. |
 | `lbs`     | Batch size. |
-| `lora_rank`   | The LoRA rank for **FedLoRA**|
-| `lora_alpha`  | The LoRA scaling factor for **FedLoRA**|
+| `lora_rank`               | The LoRA rank for **FedLoRA**.|
+| `lora_alpha`              | The LoRA scaling factor for **FedLoRA**.|
+| `lora_projection_text`    | LoRA apply to projection text for **FedLoRA**.|
+| `lora_projection_vision`  | LoRA apply to projection vision for **FedLoRA**.|
 | `sd`      | The initial seed. |
 
 
