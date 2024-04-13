@@ -45,6 +45,12 @@ We provide **16** popular datasets: **Fashion-MNIST (F-MNIST)**, **CIFAR-10**, *
 
 After generating and partitioning dataset for clients, we can run the training and evaluation. All codes corresponding to **FLoRA** and other baselines: **FedFFT**, **FedLC**, **FedVM-LC**, and **FedAA** are stored in `./script`. Different folder corresponds with that specific dataset.
 
+### Examples for **FedLC** on **OxfordPets** with **Practical non-IID** scenario
+```
+cd ./scripts/oxfordpets
+bash fedlc.sh
+```
+
 ### Examples for **FLoRA** on **Caltech101** with **IID few-shot** scenario
 ```
 cd ./scripts/caltech101
