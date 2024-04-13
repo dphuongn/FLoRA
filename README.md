@@ -12,7 +12,7 @@ conda activate flora
 
 ## Generating datasets
 
-We provide **16** popular datasets: **Fashion-MNIST (F-MNIST)**, **CIFAR-10**, **CIFAR-100**, **Tiny-ImageNet (TINY)**, **Oxford-IIIT Pet (OxfordPets)**, **Oxford 102 Flower (Flowers102)**, **FGVC-Aircraft (Aircraft)**, **Stanford Cars (Cars)**, **Describable Textures Dataset (DTD)**, **EuroSAT**, **FER2013**, **Caltech101**, **Food101**, **Country211**, **SUN397**, and **Rendered SST2 (R-SST2)** and they can be easy split into **IID** and **non-IID** version. For **non-IID**, we have practical setting (with hyperpameter for Dirichlet distribution $\beta$) and pathological setting.
+We provide **16** popular datasets: **Fashion-MNIST (F-MNIST)**, **CIFAR-10**, **CIFAR-100**, **Tiny-ImageNet (TINY)**, **Oxford-IIIT Pet (OxfordPets)**, **Oxford 102 Flower (Flowers102)**, **FGVC-Aircraft (Aircraft)**, **Stanford Cars (Cars)**, **Describable Textures Dataset (DTD)**, **EuroSAT**, **FER2013**, **Caltech101**, **Food101**, **Country211**, **SUN397**, and **Rendered SST2 (R-SST2)** and they can be easy split into **IID** and **non-IID** version. For **non-IID**, we have practical setting (with hyperpameter for Dirichlet distribution $\beta$) and pathological setting (few-shot scenario). 
 
 ### Examples for **CIFAR10**
 - Total 10 clients, iid and balance scenario

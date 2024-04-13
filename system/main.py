@@ -15,8 +15,6 @@ from flcore.servers.serveraa import FedAa
 from flcore.servers.serverfft import FedFft
 from flcore.servers.serverlc import FedLc
 from flcore.servers.servervmlc import FedVmLc
-from flcore.servers.serverprompt import FedPrompt
-from flcore.servers.serverca import FedCa
 
 
 from flcore.trainmodel.clip_model import *
@@ -275,7 +273,7 @@ if __name__ == "__main__":
     parser.add_argument('-tr_d_f', "--train_data_fraction", type=float, default=1.0)
     parser.add_argument('-te_d_f', "--test_data_fraction", type=float, default=1.0)
     parser.add_argument('-sd', "--seed", type=int, default=0, help="Random seed")
-    parser.add_argument('-fs', "--few_shot", type=bool, default=False)
+    parser.add_argument('-fs', "--few_shot", type=bool, default=True)
     
     
     # Add these lines in the section where you're defining arguments (in parser.add_argument() calls)

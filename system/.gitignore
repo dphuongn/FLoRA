@@ -1,0 +1,17 @@
+*__pycache__*
+# Ignore everything inside the dataset folder
+dataset/**
+
+# But do not ignore the dataset folder itself
+!dataset/
+
+# Do not ignore Python files in the dataset folder
+!dataset/*.py
+
+logs/**
+
+results/**
+
+scripts/**
+
+system/flcore/models/**
