@@ -1,6 +1,8 @@
 # Pathological non-IID few-shot scenario
 # FedFFT
 
+cd ../../system/
+
 nohup python -u main.py \
     -data pets \
     -m fft \

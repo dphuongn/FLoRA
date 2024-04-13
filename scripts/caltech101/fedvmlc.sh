@@ -1,6 +1,8 @@
 # IID few-shot scenario
 # FedVM-LC
 
+cd ../../system/
+
 nohup python -u main.py \
     -data caltech101 \
     -m vmlc \

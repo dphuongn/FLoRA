@@ -1,6 +1,8 @@
 # Pathological non-IID few-shot scenario
 # FLoRA
 
+cd ../../system/
+
 nohup python -u main.py \
     -data tiny \
     -m lora \

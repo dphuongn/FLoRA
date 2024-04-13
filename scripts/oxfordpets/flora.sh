@@ -1,6 +1,8 @@
 # Practical non-IID scenario
 # FLoRA
 
+cd ../../system/
+
 nohup python -u main.py \
     -data pets \
     -m lora \

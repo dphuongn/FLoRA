@@ -1,6 +1,8 @@
 # IID scenario
 # FedAA
 
+cd ../../system/
+
 nohup python -u main.py \
     -data cifar10 \
     -m aa \

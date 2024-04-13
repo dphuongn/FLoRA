@@ -1,6 +1,8 @@
 # IID few-shot scenario
 # FLoRA
 
+cd ../../system/
+
 nohup python -u main.py \
     -data caltech101 \
     -m lora \
