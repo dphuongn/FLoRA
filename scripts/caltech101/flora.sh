@@ -7,7 +7,7 @@ cd ../../system/
 nohup python -u main.py \
     -data caltech101 \
     -m lora \
-    -algo fedlora \
+    -algo flora \
     -gr 50 \
     -did 0 \
     -nc 10 \

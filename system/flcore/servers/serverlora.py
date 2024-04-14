@@ -12,7 +12,7 @@ import torch
 
 
 
-class FedLora(Server):
+class FLora(Server):
     def __init__(self, args, times):
         super().__init__(args, times)
 
@@ -30,7 +30,7 @@ class FedLora(Server):
         
         self.set_clients(clientLORA)
         
-        self.few_shot = args.few_shot
+        self.pfl = args.personalized_fl
 
         print(f"\nJoin ratio / total clients: {self.join_ratio} / {self.num_clients}")
         print("Finished creating server and clients.")
@@ -107,7 +107,7 @@ class FedLora(Server):
         for param_key in self.global_model.keys():
             self.global_model[param_key] += client_model[param_key].clone() * weight
     
-    def test_metrics_fs(self):
+    def test_metrics_tfl(self):
         if self.eval_new_clients and self.num_new_clients > 0:
             self.fine_tuning_new_clients()
             return self.test_metrics_new_clients()
@@ -138,8 +138,8 @@ class FedLora(Server):
     
     def evaluate(self, acc=None, loss=None):
         
-        if self.few_shot:
-            stats = self.test_metrics_fs()
+        if not self.pfl:
+            stats = self.test_metrics_tfl()
             
             print(f'stats[1]: {stats[1]}')
             print(f'stats[2]: {stats[2]}')

@@ -10,7 +10,7 @@ import numpy as np
 import torchvision
 import logging
 
-from flcore.servers.serverlora import FedLora
+from flcore.servers.serverlora import FLora
 from flcore.servers.serveraa import FedAa
 from flcore.servers.serverfft import FedFft
 from flcore.servers.serverlc import FedLc
@@ -113,9 +113,9 @@ def run(args):
             
             
         # added---------------------------
-        elif args.algorithm == "fedlora":
+        elif args.algorithm == "flora":
             # args.lora = args.model.model.get_lora_state_dict()
-            server = FedLora(args, i)
+            server = FLora(args, i)
             
         elif args.algorithm == "fedaa":
             server = FedAa(args, i)
@@ -273,7 +273,8 @@ if __name__ == "__main__":
     parser.add_argument('-tr_d_f', "--train_data_fraction", type=float, default=1.0)
     parser.add_argument('-te_d_f', "--test_data_fraction", type=float, default=1.0)
     parser.add_argument('-sd', "--seed", type=int, default=0, help="Random seed")
-    parser.add_argument('-fs', "--few_shot", type=bool, default=True)
+    # parser.add_argument('-fs', "--few_shot", type=bool, default=False)
+    parser.add_argument('-pfl', "--personalized_fl", type=bool, default=False, help="Personalized federated learning")
     
     
     # Add these lines in the section where you're defining arguments (in parser.add_argument() calls)
@@ -346,6 +347,8 @@ if __name__ == "__main__":
         args.device = "cpu"
 
     print("=" * 50)
+
+    print("Personalized Federated Learning: {}".format(args.personalized_fl))
 
     print("Seed: {}".format(args.seed))
     print("Algorithm: {}".format(args.algorithm))
