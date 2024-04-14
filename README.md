@@ -63,7 +63,7 @@ bash flora.sh
 | --------- | ----------- |
 |`data`     | Dataset to use. Options: `fmnist`, `cifar10`, `cifar100`,`tiny`, `pets`, `flowers`, `aircraft`, `cars`, `dtd`, `eurosat`, `fer2013`, `caltech101`, `food101`, `country211`, `sun397`, and `rsst2`.|          
 | `m`       | The method. Options: `fft`, `lc`, `vmlc`, `aa`, and `lora`.|
-| `alg`     | The training algorithm. Options: `fedfft`, `fedlc`, `fedvmlc`, `fedaa`, and `fedlora`.|
+| `alg`     | The training algorithm. Options: `fedfft`, `fedlc`, `fedvmlc`, `fedaa`, and `flora`.|
 | `gr`      | Number of communication rounds. |
 | `jr`      | Ratio of participating clients per round (default: `1`). |
 | `did`     | GPU device ID (default: `0`). |
