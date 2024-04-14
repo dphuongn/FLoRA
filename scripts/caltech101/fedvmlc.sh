@@ -13,6 +13,5 @@ nohup python -u main.py \
     -did 0 \
     -nc 10 \
     -lbs 128 \
-    -fs True \
     -sd 0 \
     > result-caltech101-iid-fs-fedvmlc-npz.out 2>&1 & 
