@@ -1,3 +1,19 @@
+# PFLlib: Personalized Federated Learning Algorithm Library
+# Copyright (C) 2021  Jianqing Zhang
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import numpy as np
 import os
@@ -6,7 +22,7 @@ import random
 import torch
 import torchvision
 import torchvision.transforms as transforms
-from utils.dataset_utils_new import check, process_dataset, separate_data, split_data, save_file, separate_data_few_shot_iid, separate_data_few_shot_pat_non_iid
+from utils.dataset_utils_new import check, process_dataset, separate_data, separate_data_pfl, split_data, save_file, separate_data_few_shot_iid, separate_data_few_shot_pat_non_iid
 
 
 random.seed(1)
@@ -19,7 +35,7 @@ if not dir_path.endswith('/'):
 num_classes = 101
 
 # Allocate data to users
-def generate_food101(dir_path, num_clients, num_classes, niid, balance, partition, alpha, few_shot, n_shot):
+def generate_food101(dir_path, num_clients, num_classes, niid, balance, partition, alpha, few_shot, n_shot, pfl):
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
         
@@ -28,7 +44,7 @@ def generate_food101(dir_path, num_clients, num_classes, niid, balance, partitio
     train_path = dir_path + "train/"
     test_path = dir_path + "test/"
 
-    if check(config_path, train_path, test_path, num_clients, num_classes, niid, balance, partition, alpha, few_shot, n_shot):
+    if check(config_path, train_path, test_path, num_clients, num_classes, niid, balance, partition, alpha, few_shot, n_shot, pfl):
         return
     
     transform = transforms.Compose([
@@ -55,10 +71,20 @@ def generate_food101(dir_path, num_clients, num_classes, niid, balance, partitio
     dataset_image = np.array(dataset_image)
     dataset_label = np.array(dataset_label)
     
+    if pfl:
+        X, y, statistic = separate_data_pfl((dataset_image, dataset_label), num_clients, num_classes,  
+                                    niid, balance, partition, alpha, class_per_client=4)
+        
+        train_data, test_data = split_data(X, y)
+        
+        for idx, test_dict in enumerate(train_data):
+            print(f'train data: {idx}')
+            print(f'train data shape: {len(train_data[idx]["y"])}')
+        for idx, test_dict in enumerate(test_data):
+            print(f'test data: {idx}')
+            print(f'test data shape: {len(test_dict["x"])}')
     
-    
-
-    if few_shot:  # Add a parameter or a condition to trigger few-shot scenario
+    elif few_shot:  # Add a parameter or a condition to trigger few-shot scenario
         if not niid:
             train_data, test_data, statistic, statistic_test = separate_data_few_shot_iid((dataset_image, dataset_label), 
                                                         num_clients, num_classes, n_shot)
@@ -124,6 +150,8 @@ if __name__ == "__main__":
         except ValueError:
             print("Invalid input for n_shot. Please provide an integer value.")
             sys.exit(1)
+            
+    pfl = sys.argv[8].lower() == "pfl"
     
     # Print all parsed arguments
     print(f"Running script with the following parameters:")
@@ -134,5 +162,6 @@ if __name__ == "__main__":
     print(f"alpha: {alpha}")
     print(f"few_shot: {few_shot}")
     print(f"n_shot: {n_shot}")
+    print(f"pfl: {pfl}")
 
-    generate_food101(dir_path, num_clients, num_classes, niid, balance, partition, alpha, few_shot, n_shot)
+    generate_food101(dir_path, num_clients, num_classes, niid, balance, partition, alpha, few_shot, n_shot, pfl)

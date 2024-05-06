@@ -4,7 +4,7 @@ channels:
   - nvidia
   - defaults
 dependencies:
-  - pip=22
+  - pip
   - pandas
   - scikit-learn
   - scipy
@@ -13,6 +13,7 @@ dependencies:
   - seaborn
   - matplotlib
   - transformers
+  - datasets
   - tqdm
   - pip:
     - torch

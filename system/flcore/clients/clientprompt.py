@@ -30,30 +30,38 @@ from sklearn import metrics
 from utils.data_utils import read_client_data, read_client_data_clip, return_zeroshot_weight, accuracy
 from torch.utils.data import Subset
 
-from flcore.trainmodel.clip_model import *
 
-
-class clientLC(Client):
+class clientPROMPT(Client):
     def __init__(self, args, id, train_samples, test_samples, **kwargs):
         super().__init__(args, id, train_samples, test_samples, **kwargs)
         
-        self.class_names = args.class_names
-        
-        self.clip_model_object = CLIPModelWithLinearClassifier(model_id=args.model_id, home_dir=args.home_dir, num_classes=args.num_classes, 
-                                                        dataset=args.dataset, class_names=self.class_names, device=args.device).to(args.device)
+        self.clip_model_object = copy.deepcopy(args.model)
+        # self.model = copy.deepcopy(args.model.model)
         
         self.clip_model = self.clip_model_object.model
         
-        self.lc = self.clip_model_object.lc
+        self.text_encoder = self.clip_model_object.text_encoder
+        
+        self.prompt_learner = self.clip_model_object.prompt_learner
+        
+        self.prompts = self.clip_model_object.prompts
+        
+        self.tokenized_prompts = self.clip_model_object.tokenized_prompts
         
         self.processor = self.clip_model_object.processor
+        
+        self.logit_scale = self.clip_model.state_dict()['logit_scale'].exp()
+        
+        self.tokenzier = self.clip_model_object.tokenizer
         
         self.loss = nn.CrossEntropyLoss()
         
         self.train_data_fraction = args.train_data_fraction
         self.test_data_fraction = args.test_data_fraction
         
-        self.optimizer = torch.optim.Adam([p for name, p in self.lc.named_parameters() if p.requires_grad], lr=self.learning_rate,betas=(0.9,0.98),eps=1e-6,weight_decay=0.2)
+        self.class_names = args.class_names
+        
+        self.optimizer = torch.optim.Adam([p for name, p in self.prompt_learner.named_parameters() if p.requires_grad], lr=self.learning_rate,betas=(0.9,0.98),eps=1e-6,weight_decay=0.2)
         
         
         # print(f"print LoRA parameters before training:")
@@ -100,7 +108,7 @@ class clientLC(Client):
         trainloader = self.load_train_data()
         # self.clip_model.to(self.device)
         self.clip_model.train()
-        self.lc.train()
+        self.prompt_learner.train()
 
         # differential privacy
         if self.privacy:
@@ -124,20 +132,29 @@ class clientLC(Client):
 
                     image_features = self.clip_model.get_image_features(images).float()
                     
-                    # added LC-----------------------------------------
-                    logits, probas = self.lc(image_features)
+                    # added Prompt-----------------------------------------
+                    text_features = self.text_encoder(self.prompts, self.tokenized_prompts).float()
                     #--------------------------------------------------
-        
-        
-                    # Compute loss
-                    loss = self.loss(logits, target)
+                    
+                    image_features = image_features / \
+                        image_features.norm(dim=1, keepdim=True)
+                    text_features = text_features / \
+                        text_features.norm(dim=1, keepdim=True)
+                    
+                    logits_per_image = self.logit_scale * image_features @ text_features.t()
+                    logits_per_text = logits_per_image.t()
+                    
+                    ground_truth = torch.arange(len(images), dtype=torch.long, device=self.device)
+                    # total_loss = (self.loss(logits_per_image, ground_truth) + self.loss(logits_per_text, ground_truth))/2
+                    
+                    total_loss = (self.loss(logits_per_image, ground_truth))
 
                     # Backward pass
                     self.optimizer.zero_grad()
-                    loss.backward()
+                    total_loss.backward()
                     self.optimizer.step()
 
-                    pbar.set_description(f"Epoch {epoch+1}/{self.local_epochs}, Loss: {loss.item():.4f}")
+                    pbar.set_description(f"Epoch {epoch+1}/{self.local_epochs}, Loss: {total_loss.item():.4f}")
 
         end = time.time()
         elapsed = end-start
@@ -169,7 +186,9 @@ class clientLC(Client):
         # self.clip_modelmodel = self.load_model('model')
         # self.clip_model.to(self.device)
         self.clip_model.eval()
-        self.lc.eval()
+        self.prompt_learner.eval()
+        
+        text_features = self.text_encoder(self.prompts, self.tokenized_prompts)
                 
         with torch.no_grad():
             top1_1, top5_1, test_num = 0., 0., 0.
@@ -179,26 +198,27 @@ class clientLC(Client):
                 images = images
                 target = target.to(self.device)
                 texts = texts
-
+                
+                
                 # predict
                 image_features = self.clip_model.get_image_features(images)
-                
-                # added LC-----------------------------------------
-                logits, probas = self.lc(image_features)
-                #--------------------------------------------------
-                
-                # image_features /= image_features.norm(dim=-1, keepdim=True)
+                image_features /= image_features.norm(dim=-1, keepdim=True)
 
                 # measure accuracy of 1 template
-                # zeroshot_weights_1 = return_zeroshot_weight(self.dataset, self.clip_model, self.processor, self.class_names, self.device)
-                # logits = 100. * image_features @ zeroshot_weights_1
+                
+                
+                # added Prompt-----------------------------------------
+                text_features = self.text_encoder(self.prompts, self.tokenized_prompts)
+                #--------------------------------------------------
+                
+                logits = self.logit_scale * image_features @ text_features.t()
                 # acc1, acc5 = accuracy(logits, target, topk=(1, 5))
-                # acc1, acc5 = accuracy(probas, target, topk=(1, 5))
                 acc1 = accuracy(logits, target, topk=(1,))
                 top1_1 += acc1[0]
                 # top5_1 += acc5
 
                 test_num += images.size(0)
+                
 
         top1_1 = (top1_1 / test_num) * 100
         top5_1 = (top5_1 / test_num) * 100 
@@ -207,9 +227,6 @@ class clientLC(Client):
         print(f"Top-1: {top1_1:.2f}, Top-5: {top5_1:.2f}")
     
         return top1_1, test_num, 0
-    
-    def set_parameters(self, model):
-        self.clip_model_object.set_lc_parameters(model)
     
     # ------------------------------------------------------------
     

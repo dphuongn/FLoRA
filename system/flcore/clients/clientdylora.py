@@ -33,18 +33,17 @@ from torch.utils.data import Subset
 from flcore.trainmodel.clip_model import *
 
 
-class clientLORA(Client):
+class clientDYLORA(Client):
     def __init__(self, args, id, train_samples, test_samples, **kwargs):
         super().__init__(args, id, train_samples, test_samples, **kwargs)
         
-        self.lora_params = args.lora_params
-        
-        print(f'self.lora_params: {self.lora_params}')
+        self.lora_params = kwargs['lora_params']
         
         self.clip_model_object = CLIPModelWithLoRA(model_id=args.model_id, home_dir=args.home_dir, lora_params=self.lora_params).to(args.device)
         
+        # print(f'self.clip_model_object client: {self.clip_model_object}')
+        
         # self.clip_model_object = copy.deepcopy(args.model)
-        # self.model = copy.deepcopy(args.model.model)
         
         self.clip_model = self.clip_model_object.model
         
@@ -291,8 +290,90 @@ class clientLORA(Client):
         return top1_1, test_num, 0
     
     
+    # def train_metrics(self):
+        trainloader = self.load_train_data()
+        # self.model = self.load_model('model')
+        # self.model.to(self.device)
+        self.clip_model.eval()
+
+        train_num = 0
+        losses = 0
+        # with torch.no_grad():
+        #     for x, y in trainloader:
+        #         if type(x) == type([]):
+        #             x[0] = x[0].to(self.device)
+        #         else:
+        #             x = x.to(self.device)
+        #         y = y.to(self.device)
+        #         output = self.model(x)
+        #         loss = self.loss(output, y)
+        #         train_num += y.shape[0]
+        #         losses += loss.item() * y.shape[0]
+        
+        
+        # batch_size = 100
+        # num_epochs = 1
+        start = time.time()
+
+        # Train the model
+        # for epoch in range(self.local_epochs):
+        with tqdm(trainloader, total=len(trainloader)) as pbar:  # Initialize pbar here
+            for batch in pbar:      
+
+                images, target, texts = batch
+
+                # texts is a dictionary, extract the required tensors
+                input_ids = texts['input_ids'].squeeze(1) # Remove the extra dimension
+                attention_mask = texts['attention_mask'].squeeze(1) # Remove the extra dimension
+
+
+                image_features = self.clip_model.get_image_features(images).float()
+
+                text_features = self.clip_model.get_text_features(input_ids=input_ids, 
+                                                            attention_mask=attention_mask).float()
+
+
+                image_features = image_features / \
+                    image_features.norm(dim=1, keepdim=True)
+                text_features = text_features / \
+                    text_features.norm(dim=1, keepdim=True)
+
+                # logit_scale = model.model.logit_scale.exp()
+                # logit_scale = self.clip_model.state_dict()['logit_scale'].exp()
+                logits_per_image = self.logit_scale * image_features @ text_features.t()
+                logits_per_text = logits_per_image.t()
+
+
+                # Compute loss
+                ground_truth = torch.arange(len(images), dtype=torch.long, device=device)
+                # total_loss = (self.loss(logits_per_image, ground_truth) + self.loss(logits_per_text, ground_truth))/2
+                
+                total_loss = (self.loss(logits_per_image, ground_truth))
+                
+
+                # Backward pass
+                self.optimizer.zero_grad()
+                total_loss.backward()
+                self.optimizer.step()
+
+                train_num += images.size(0)
+
+                # pbar.set_description(f"Epoch {epoch+1}/{self.local_epochs}, Loss: {total_loss.item():.4f}")
+
+        # end = time.time()
+        # elapsed = end-start
+        # print(f"Time elapsed {elapsed/60:.2f} min")
+        # print(f"Memory used: {torch.cuda.max_memory_reserved() / 1e9:.02f} GB")
+        
+
+        return total_loss, train_num
+    
+    
     def set_parameters(self, lora_state_dict):
         # Updating LoRA parameters from another state dict 
+        
+        # Log the shapes received to ensure they match expected shapes
+        # print(f"Client {self.id} setting parameters, Received Shapes: {[p.shape for p in lora_state_dict.values()]}")
         
         # Assuming `self.clip_model_object` has a method `set_lora_state_dict` that accepts a state dict of parameters
         self.clip_model_object.set_lora_state_dict(lora_state_dict)

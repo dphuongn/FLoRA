@@ -1,3 +1,19 @@
+# PFLlib: Personalized Federated Learning Algorithm Library
+# Copyright (C) 2021  Jianqing Zhang
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import copy
 import torch
@@ -14,13 +30,17 @@ from sklearn import metrics
 from utils.data_utils import read_client_data, read_client_data_clip, return_zeroshot_weight, accuracy
 from torch.utils.data import Subset
 
+from flcore.trainmodel.clip_model import *
+
 
 class clientVMLC(Client):
     def __init__(self, args, id, train_samples, test_samples, **kwargs):
         super().__init__(args, id, train_samples, test_samples, **kwargs)
         
-        self.clip_model_object = copy.deepcopy(args.model)
-        # self.model = copy.deepcopy(args.model.model)
+        self.class_names = args.class_names
+        
+        self.clip_model_object = CLIPModelWithVisionModelLinearClassifier(model_id=args.model_id, home_dir=args.home_dir, num_classes=args.num_classes,
+                                                        dataset=args.dataset, class_names=self.class_names, device=args.device).to(args.device)
         
         self.clip_model = self.clip_model_object.model
         
@@ -34,8 +54,6 @@ class clientVMLC(Client):
         
         self.train_data_fraction = args.train_data_fraction
         self.test_data_fraction = args.test_data_fraction
-        
-        self.class_names = args.class_names
         
         self.optimizer = torch.optim.Adam(
             [{'params': [p for p in self.vm.parameters() if p.requires_grad]},
@@ -198,6 +216,12 @@ class clientVMLC(Client):
         print(f"Top-1: {top1_1:.2f}, Top-5: {top5_1:.2f}")
     
         return top1_1, test_num, 0
+    
+    def set_vm_parameters(self, model):
+        self.clip_model_object.set_vm_parameters(model)
+        
+    def set_lc_parameters(self, model):
+        self.clip_model_object.set_lc_parameters(model)
     
     # ------------------------------------------------------------
     

@@ -1,3 +1,19 @@
+# PFLlib: Personalized Federated Learning Algorithm Library
+# Copyright (C) 2021  Jianqing Zhang
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 #!/usr/bin/env python
 import copy
@@ -15,6 +31,9 @@ from flcore.servers.serveraa import FedAa
 from flcore.servers.serverfft import FedFft
 from flcore.servers.serverlc import FedLc
 from flcore.servers.servervmlc import FedVmLc
+from flcore.servers.serverprompt import FedPrompt
+from flcore.servers.serverca import FedCa
+from system.flcore.servers.serverdylora import FedDyLora
 
 
 from flcore.trainmodel.clip_model import *
@@ -31,18 +50,8 @@ warnings.simplefilter("ignore")
 # torch.manual_seed(0)
 
 
-model_id="openai/clip-vit-base-patch32"
-home_dir=os.path.expanduser('~')
-
-ca_params = {
-    'bottleneck_reduction': 4,
-    
-    'ratio': 0.6,
-    
-    'aa_text': False,
-    
-    'aa_vision': True,
-}
+# model_id="openai/clip-vit-base-patch32"
+# home_dir=os.path.expanduser('~')
 
 
 def run(args):
@@ -58,32 +67,47 @@ def run(args):
 
         # Generate args.model
         # added-------------------------------------
-        if model_str == "lora":
-            args.model = CLIPModelWithLoRA(model_id=model_id, home_dir=home_dir, lora_params=lora_params).to(args.device)
-            
-        elif model_str == "aa":
-            args.model = CLIPModelWithAttentionAdapter(model_id=model_id, home_dir=home_dir, aa_params=aa_params).to(args.device)
-
-        elif model_str == "fft":
-            args.model = CLIPModelFFT(model_id=model_id, home_dir=home_dir).to(args.device)
-            
-        elif model_str == "lc":
-            args.model = CLIPModelWithLinearClassifier(model_id=model_id, home_dir=home_dir, num_classes=len(args.class_names), 
-                                                        dataset=args.dataset, class_names=args.class_names, device=args.device).to(args.device)
-
-        elif model_str == "vmlc":
-            args.model = CLIPModelWithVisionModelLinearClassifier(model_id=model_id, home_dir=home_dir, num_classes=len(args.class_names),
-                                                        dataset=args.dataset, class_names=args.class_names, device=args.device).to(args.device)
-            
-        elif model_str == "prompt":
-            args.model = CLIPModelWithPrompt(model_id=model_id, home_dir=home_dir, class_names=args.class_names, device=args.device).to(args.device)
-            
-        elif model_str == "ca":
-            args.model = CLIPModelWithClipAdapter(model_id=model_id, home_dir=home_dir, ca_params=ca_params).to(args.device)
-        #-------------------------------------------    
-
+        
+        if args.model == "vit-b-32":
+            args.model_id = "openai/clip-vit-base-patch32"
+        elif args.model == "vit-b-16":
+            args.model_id = "openai/clip-vit-base-patch16"
+        elif args.model == "vit-l-14":
+            args.model_id = "openai/clip-vit-large-patch14"
+        elif args.model == "vit-l-14-336":
+            args.model_id = "openai/clip-vit-large-patch14-336"
         else:
             raise NotImplementedError
+        
+        # if model_str == "lora":
+        #     args.model = CLIPModelWithLoRA(model_id=args.model_id, home_dir=args.home_dir, lora_params=lora_params).to(args.device)
+            
+        # elif model_str == "dynamic_lora":
+        #     args.model = CLIPModelWithDynamicLoRA(model_id=args.model_id, home_dir=args.home_dir, lora_params=lora_params).to(args.device)
+            
+        # elif model_str == "aa":
+        #     args.model = CLIPModelWithAttentionAdapter(model_id=args.model_id, home_dir=args.home_dir, aa_params=aa_params).to(args.device)
+
+        # elif model_str == "fft":
+        #     args.model = CLIPModelFFT(model_id=args.model_id, home_dir=args.home_dir).to(args.device)
+            
+        # elif model_str == "lc":
+        #     args.model = CLIPModelWithLinearClassifier(model_id=args.model_id, home_dir=args.home_dir, num_classes=len(args.class_names), 
+        #                                                 dataset=args.dataset, class_names=args.class_names, device=args.device).to(args.device)
+
+        # elif model_str == "vmlc":
+        #     args.model = CLIPModelWithVisionModelLinearClassifier(model_id=args.model_id, home_dir=args.home_dir, num_classes=len(args.class_names),
+        #                                                 dataset=args.dataset, class_names=args.class_names, device=args.device).to(args.device)
+            
+        # elif model_str == "prompt":
+        #     args.model = CLIPModelWithPrompt(model_id=args.model_id, home_dir=args.home_dir, class_names=args.class_names, device=args.device).to(args.device)
+            
+        # elif model_str == "ca":
+        #     args.model = CLIPModelWithClipAdapter(model_id=args.model_id, home_dir=args.home_dir, ca_params=ca_params).to(args.device)
+        # #-------------------------------------------    
+
+        # else:
+        #     raise NotImplementedError
 
         # print(args.model)
 
@@ -116,6 +140,9 @@ def run(args):
         elif args.algorithm == "flora":
             # args.lora = args.model.model.get_lora_state_dict()
             server = FLora(args, i)
+            
+        elif args.algorithm == "fdylora":
+            server = FedDyLora(args, i)
             
         elif args.algorithm == "fedaa":
             server = FedAa(args, i)
@@ -174,7 +201,7 @@ if __name__ == "__main__":
     parser.add_argument('-did', "--device_id", type=str, default="0")
     parser.add_argument('-data', "--dataset", type=str, default="mnist")
     parser.add_argument('-nb', "--num_classes", type=int, default=10)
-    parser.add_argument('-m', "--model", type=str, default="cnn")
+    parser.add_argument('-m', "--model", type=str, default="vit-b-32")
     parser.add_argument('-lbs', "--batch_size", type=int, default=512)
     parser.add_argument('-lr', "--local_learning_rate", type=float, default=0.00005,
                         help="Local learning rate")
@@ -273,52 +300,76 @@ if __name__ == "__main__":
     parser.add_argument('-tr_d_f', "--train_data_fraction", type=float, default=1.0)
     parser.add_argument('-te_d_f', "--test_data_fraction", type=float, default=1.0)
     parser.add_argument('-sd', "--seed", type=int, default=0, help="Random seed")
-    # parser.add_argument('-fs', "--few_shot", type=bool, default=False)
-    parser.add_argument('-pfl', "--personalized_fl", type=bool, default=False, help="Personalized federated learning")
+    parser.add_argument('-pfl', "--personalized_fl", action='store_true', help="Enable Personalized Federated Learning")
+    
+    # parser.add_argument('--model_id', type=str, default="openai/clip-vit-base-patch32")
+    parser.add_argument('--home_dir', type=str, default=os.path.expanduser('~'))
+    
+    parser.add_argument('-uw', '--uniform_weight', action='store_true', help="Enable uniform weights")
+    parser.add_argument('-norm_rank', '--normalized_rank',  action='store_true', help="Enable normalized LoRA ranks for fdylora")
+    parser.add_argument('-norm_alpha', '--normalized_alpha',  action='store_true', help="Enable normalized LoRA alphas for fdylora")
+    parser.add_argument('-rand_rank', '--random_rank', action='store_true', help="Enable LoRA random rank")
+    parser.add_argument('-rand_alpha', '--random_alpha', action='store_true', help="Enable LoRA random alpha")
+    parser.add_argument('-fi_rank', '--fixed_rank', action='store_true', help="Enable LoRA fixed rank")
+    parser.add_argument('-fi_alpha', '--fixed_alpha', action='store_true', help="Enable LoRA fixed alpha")
     
     
     # Add these lines in the section where you're defining arguments (in parser.add_argument() calls)
     parser.add_argument('--lora_rank', type=int, default=2, help="LoRA rank")
+    parser.add_argument('--lora_rank_min', type=int, default=0, help="LoRA rank min")
+    parser.add_argument('--lora_rank_max', type=int, default=32, help="LoRA rank max")
     parser.add_argument('--lora_alpha', type=int, default=32, help="LoRA alpha")
+    parser.add_argument('--lora_alpha_min', type=int, default=0, help="LoRA alpha min")
+    parser.add_argument('--lora_alpha_max', type=int, default=64, help="LoRA alpha max")
     parser.add_argument('--lora_dropout', type=float, default=0.05, help="LoRA dropout rate")
-    parser.add_argument('--lora_query_text', type=bool, default=False, help="LoRA apply to query text")
-    parser.add_argument('--lora_key_text', type=bool, default=False, help="LoRA apply to key text")
-    parser.add_argument('--lora_value_text', type=bool, default=False, help="LoRA apply to value text")
-    parser.add_argument('--lora_projection_text', type=bool, default=False, help="LoRA apply to projection text")
-    parser.add_argument('--lora_mlp_text', type=bool, default=False, help="LoRA apply to MLP text")
-    parser.add_argument('--lora_head_text', type=bool, default=False, help="LoRA apply to head text")
-    parser.add_argument('--lora_query_vision', type=bool, default=False, help="LoRA apply to query vision")
-    parser.add_argument('--lora_key_vision', type=bool, default=False, help="LoRA apply to key vision")
-    parser.add_argument('--lora_value_vision', type=bool, default=False, help="LoRA apply to value vision")
-    parser.add_argument('--lora_projection_vision', type=bool, default=False, help="LoRA apply to projection vision")
-    parser.add_argument('--lora_mlp_vision', type=bool, default=False, help="LoRA apply to MLP vision")
-    parser.add_argument('--lora_head_vision', type=bool, default=False, help="LoRA apply to head vision")
+    parser.add_argument('--lora_query_text', action='store_true', help="LoRA apply to query text")
+    parser.add_argument('--lora_key_text', action='store_true', help="LoRA apply to key text")
+    parser.add_argument('--lora_value_text', action='store_true', help="LoRA apply to value text")
+    parser.add_argument('--lora_projection_text', action='store_true', help="LoRA apply to projection text")
+    parser.add_argument('--lora_mlp_text', action='store_true', help="LoRA apply to MLP text")
+    parser.add_argument('--lora_head_text', action='store_true', help="LoRA apply to head text")
+    parser.add_argument('--lora_query_vision', action='store_true', help="LoRA apply to query vision")
+    parser.add_argument('--lora_key_vision', action='store_true', help="LoRA apply to key vision")
+    parser.add_argument('--lora_value_vision', action='store_true', help="LoRA apply to value vision")
+    parser.add_argument('--lora_projection_vision', action='store_true', help="LoRA apply to projection vision")
+    parser.add_argument('--lora_mlp_vision', action='store_true', help="LoRA apply to MLP vision")
+    parser.add_argument('--lora_head_vision', action='store_true', help="LoRA apply to head vision")
     
     
     parser.add_argument('--aa_bottleneck_reduction', type=int, default=1, help="Attention Adapter bottleneck reduction")
-    parser.add_argument('--aa_text', type=bool, default=False, help="Attention Adapter apply to text")
-    parser.add_argument('--aa_vision', type=bool, default=False, help="Attention Adapter apply to vision")
+    parser.add_argument('--aa_text', action='store_true', help="Attention Adapter apply to text")
+    parser.add_argument('--aa_vision', action='store_true', help="Attention Adapter apply to vision")
+    
+    
+    parser.add_argument('--ca_bottleneck_reduction', type=int, default=4, help="Clip Adapter bottleneck reduction")
+    parser.add_argument('--ca_ratio', type=float, default=0.2, help="Clip Adapter ratio")
+    parser.add_argument('--ca_text', action='store_true', help="Clip Adapter apply to text")
+    parser.add_argument('--ca_vision', action='store_true', help="Clip Adapter apply to vision")
 
     
 
 
     args = parser.parse_args()
     
-    
     args.class_names = get_class_names(args.dataset)
-    
+    args.num_classes = len(args.class_names)    
     print(f'args.class_names: {args.class_names}')
+    print(f'args.num_classes: {args.num_classes}')
     
-    aa_params = {
+    args.aa_params = {
         'aa_bottleneck_reduction': args.aa_bottleneck_reduction,
         'aa_text': args.aa_text,
         'aa_vision': args.aa_vision,
     }
     
     
-    lora_params = {
+    args.lora_params = {
         'rank': args.lora_rank,
+        'rank_min': args.lora_rank_min,
+        'rank_max': args.lora_rank_max,
         'alpha': args.lora_alpha,
+        'alpha_min': args.lora_alpha_min,
+        'alpha_max': args.lora_alpha_max,
         'lora_dropout': args.lora_dropout,
         'lora_query_text': args.lora_query_text,
         'lora_key_text': args.lora_key_text,
@@ -334,6 +385,13 @@ if __name__ == "__main__":
         'lora_head_vision': args.lora_head_vision,
     }
 
+
+    args.ca_params = {
+        'bottleneck_reduction': args.ca_bottleneck_reduction,
+        'ratio': args.ca_ratio,
+        'aa_text': args.ca_text,
+        'aa_vision': args.ca_vision,
+    }
     
     
     # Set the seed
@@ -347,8 +405,29 @@ if __name__ == "__main__":
         args.device = "cpu"
 
     print("=" * 50)
-
+    
     print("Personalized Federated Learning: {}".format(args.personalized_fl))
+    print("Uniform Weight: {}".format(args.uniform_weight))
+    print("Normalized Rank: {}".format(args.normalized_rank))
+    print("Normalized Alpha: {}".format(args.normalized_alpha))
+    
+    print("lora_rank: {}".format(args.lora_rank))
+    print("lora_rank_min: {}".format(args.lora_rank_min))
+    print("lora_rank_max: {}".format(args.lora_rank_max))
+    print("lora_alpha: {}".format(args.lora_alpha))
+    print("lora_alpha_min: {}".format(args.lora_alpha_min))
+    print("lora_alpha_max: {}".format(args.lora_alpha_max))
+    print("lora_projection_text: {}".format(args.lora_projection_text))
+    print("lora_projection_vision: {}".format(args.lora_projection_vision))
+    
+    print("aa_bottleneck_reduction: {}".format(args.aa_bottleneck_reduction))
+    print("aa_text: {}".format(args.aa_text))
+    print("aa_vision: {}".format(args.aa_vision))
+    
+    print("ca_bottleneck_reduction: {}".format(args.ca_bottleneck_reduction))
+    print("ca_text: {}".format(args.ca_text))
+    print("ca_vision: {}".format(args.ca_vision))
+    
 
     print("Seed: {}".format(args.seed))
     print("Algorithm: {}".format(args.algorithm))

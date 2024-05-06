@@ -18,66 +18,41 @@
 import time
 import copy
 import random
-from flcore.clients.clientlora import clientLORA
+from flcore.clients.clientprompt import clientPROMPT
 from flcore.servers.serverbase import Server
 from threading import Thread
 import statistics
 import torch
-from utils.data_utils import read_client_data_clip
-
-from flcore.trainmodel.clip_model import *
 
 
-class FLora(Server):
+
+
+
+class FedPrompt(Server):
     def __init__(self, args, times):
         super().__init__(args, times)
 
         # select slow clients
         self.set_slow_clients()
         
-        self.class_names = args.class_names
+#         print(f'args.model: {args.model}')
         
-        self.lora_params = args.lora_params
+        self.clip_model_object = args.model
         
-        self.clip_model_object = CLIPModelWithLoRA(model_id=args.model_id, home_dir=args.home_dir, lora_params=self.lora_params).to(args.device)
-        
-        # self.clip_model_object = args.model
-        
-        self.processor = self.clip_model_object.processor
-        
-        self.global_model = copy.deepcopy(self.clip_model_object.get_lora_state_dict())    # dict of params
+        self.global_model = copy.deepcopy(self.clip_model_object.prompt_learner)    # Prompter learner model
         
         
         # print(f'args.global_model: {self.global_model}')
         
         self.pfl = args.personalized_fl
-        self.uniform_weight = args.uniform_weight
         
-        self.set_clients(clientLORA)
-        
+        self.set_clients(clientPROMPT)
 
         print(f"\nJoin ratio / total clients: {self.join_ratio} / {self.num_clients}")
         print("Finished creating server and clients.")
 
         # self.load_model()
         self.Budget = []
-        
-        
-    def set_clients(self, clientObj):
-        for i, train_slow, send_slow in zip(range(self.num_clients), self.train_slow_clients, self.send_slow_clients):
-            train_data = read_client_data_clip(self.dataset, i, self.processor, self.class_names, self.device, is_train=True)
-            if self.pfl:
-                test_data = read_client_data_clip(self.dataset, i, self.processor, self.class_names, self.device, is_train=False)
-            else:
-                test_data = read_client_data_clip(self.dataset, 0, self.processor, self.class_names, self.device, is_train=False)
-            
-            client = clientObj(self.args, 
-                            id=i, 
-                            train_samples=len(train_data), 
-                            test_samples=len(test_data), 
-                            train_slow=train_slow, 
-                            send_slow=send_slow)
-            self.clients.append(client)
 
 
     def train(self):
@@ -92,7 +67,6 @@ class FLora(Server):
                 self.evaluate()
 
             for client in self.selected_clients:
-                # client.
                 client.train()
                 
                 
@@ -105,7 +79,7 @@ class FLora(Server):
             self.receive_models()
             if self.dlg_eval and i%self.dlg_gap == 0:
                 self.call_dlg(i)
-            self.aggregate_parameters_lora()
+            self.aggregate_parameters()
 
             self.Budget.append(time.time() - s_t)
             print('-'*25, 'time cost', '-'*25, self.Budget[-1])
@@ -132,27 +106,6 @@ class FLora(Server):
             
         
     # added ------------------------------------------------------
-    def aggregate_parameters_lora(self):
-        assert (len(self.uploaded_models) > 0)
-            
-        # Initialize global LoRA parameters to zero
-        self.global_model = {k: torch.zeros_like(v) for k, v in self.uploaded_models[0].items()}
-        # print(f'self.global_model before aggregation: {self.global_model}')
-        
-        # Aggregate LoRA parameters from each client model
-        for weight, client_model in zip(self.uploaded_weights, self.uploaded_models):
-            
-            # test for no weight
-            if self.uniform_weight is True:
-                weight = 1.0
-            
-            self.add_parameters_lora(weight, client_model)
-        # print(f'self.global_model after aggregation: {self.global_model}')    
-            
-    def add_parameters_lora(self, weight, client_model):
-        for param_key in self.global_model.keys():
-            self.global_model[param_key] += client_model[param_key].clone() * weight
-    
     def test_metrics_tfl(self):
         if self.eval_new_clients and self.num_new_clients > 0:
             self.fine_tuning_new_clients()
@@ -223,48 +176,23 @@ class FLora(Server):
         print("Std Test Accuracy: {:.4f}".format(accs))
         print("Std Test AUC: {:.4f}".format(aucs))
     
-    # def evaluate(self, acc=None, loss=None):
-    #     stats = self.test_metrics()
-        
-    #     print(f'stats[1]: {stats[1]}')
-    #     print(f'stats[2]: {stats[2]}')
-    #     print(f'stats[3]: {stats[3]}')
-
-    #     test_acc = sum(stats[2])*1.0 / len(stats[2])
-    #     test_auc = sum(stats[3])*1.0 / len(stats[3])
-        
-    #     accs = statistics.stdev(stats[2])
-    #     aucs = statistics.stdev(stats[3])
-        
-        
-    #     if acc == None:
-    #         self.rs_test_acc.append(test_acc)
-    #     else:
-    #         acc.append(test_acc)
-
-    #     print("Averaged Test Accuracy: {:.4f}".format(test_acc))
-    #     print("Averaged Test AUC: {:.4f}".format(test_auc))
-    #     # self.print_(test_acc, train_acc, train_loss)
-    #     print("Std Test Accuracy: {:.4f}".format(accs))
-    #     print("Std Test AUC: {:.4f}".format(aucs))
-    
     def send_models(self):
-        # Instead of sending the whole model, only send LoRA layers
+        # sending the LC model
         assert (len(self.clients) > 0)
 
         for client in self.clients:
             start_time = time.time()
             
-            global_lora_params = self.global_model
+            global_prompt_learner_params = self.global_model
             
-            client.set_parameters(global_lora_params)
+            client.set_parameters(global_prompt_learner_params)
 
             client.send_time_cost['num_rounds'] += 1
             client.send_time_cost['total_cost'] += 2 * (time.time() - start_time)
             
     def receive_models(self):
-        # Receive only the LoRA layers from each client
-
+        # Receive LC model from each client
+        
         assert (len(self.selected_clients) > 0)
 
         active_clients = random.sample(
@@ -279,7 +207,7 @@ class FLora(Server):
             if client_time_cost <= self.time_threthold:
                 tot_samples += client.train_samples
                 self.uploaded_weights.append(client.train_samples)
-                self.uploaded_models.append(client.clip_model_object.get_lora_state_dict())
+                self.uploaded_models.append(client.prompt_learner)
         for i, w in enumerate(self.uploaded_weights):
             self.uploaded_weights[i] = w / tot_samples  
             

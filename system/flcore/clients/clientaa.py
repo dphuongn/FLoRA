@@ -1,3 +1,19 @@
+# PFLlib: Personalized Federated Learning Algorithm Library
+# Copyright (C) 2021  Jianqing Zhang
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import copy
 import torch
@@ -14,12 +30,20 @@ from sklearn import metrics
 from utils.data_utils import read_client_data, read_client_data_clip, return_zeroshot_weight, accuracy
 from torch.utils.data import Subset
 
+from flcore.trainmodel.clip_model import *
+
 
 class clientAA(Client):
     def __init__(self, args, id, train_samples, test_samples, **kwargs):
         super().__init__(args, id, train_samples, test_samples, **kwargs)
         
-        self.clip_model_object = copy.deepcopy(args.model)
+        self.aa_params = args.aa_params
+        
+        print(f'self.aa_params: {self.aa_params}')
+        
+        self.clip_model_object = CLIPModelWithAttentionAdapter(model_id=args.model_id, home_dir=args.home_dir, aa_params=self.aa_params).to(args.device)
+        
+        # self.clip_model_object = copy.deepcopy(args.model)
         # self.model = copy.deepcopy(args.model.model)
         
         self.clip_model = self.clip_model_object.model
@@ -265,6 +289,9 @@ class clientAA(Client):
         print(f"Top-1: {top1_1:.2f}, Top-5: {top5_1:.2f}")
     
         return top1_1, test_num, 0
+    
+    def set_parameters(self, model):
+        self.clip_model_object.set_aa_parameters(model)
     
     # ------------------------------------------------------------
     

@@ -1,3 +1,19 @@
+# PFLlib: Personalized Federated Learning Algorithm Library
+# Copyright (C) 2021  Jianqing Zhang
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import time
 import copy
@@ -7,9 +23,9 @@ from flcore.servers.serverbase import Server
 from threading import Thread
 import statistics
 import torch
+from utils.data_utils import read_client_data_clip
 
-
-
+from flcore.trainmodel.clip_model import *
 
 
 class FedFft(Server):
@@ -19,16 +35,16 @@ class FedFft(Server):
         # select slow clients
         self.set_slow_clients()
         
-#         print(f'args.model: {args.model}')
+        self.class_names = args.class_names
         
-        self.clip_model_object = args.model
+        self.clip_model_object = CLIPModelFFT(model_id=args.model_id, home_dir=args.home_dir).to(args.device)
         
         self.global_model = copy.deepcopy(self.clip_model_object.model)    # clip model
         
-        
-        # print(f'args.global_model: {self.global_model}')
+        self.processor = self.clip_model_object.processor
         
         self.pfl = args.personalized_fl
+        self.uniform_weight = args.uniform_weight
         
         self.set_clients(clientFFT)
 
@@ -37,6 +53,23 @@ class FedFft(Server):
 
         # self.load_model()
         self.Budget = []
+        
+    
+    def set_clients(self, clientObj):
+        for i, train_slow, send_slow in zip(range(self.num_clients), self.train_slow_clients, self.send_slow_clients):
+            train_data = read_client_data_clip(self.dataset, i, self.processor, self.class_names, self.device, is_train=True)
+            if self.pfl:
+                test_data = read_client_data_clip(self.dataset, i, self.processor, self.class_names, self.device, is_train=False)
+            else:
+                test_data = read_client_data_clip(self.dataset, 0, self.processor, self.class_names, self.device, is_train=False)
+            
+            client = clientObj(self.args, 
+                            id=i, 
+                            train_samples=len(train_data), 
+                            test_samples=len(test_data), 
+                            train_slow=train_slow, 
+                            send_slow=send_slow)
+            self.clients.append(client)
 
 
     def train(self):
@@ -63,7 +96,7 @@ class FedFft(Server):
             self.receive_models()
             if self.dlg_eval and i%self.dlg_gap == 0:
                 self.call_dlg(i)
-            self.aggregate_parameters()
+            self.aggregate_parameters_fft()
 
             self.Budget.append(time.time() - s_t)
             print('-'*25, 'time cost', '-'*25, self.Budget[-1])
@@ -211,6 +244,23 @@ class FedFft(Server):
 #             print(f"Shape of '{key}': {tensor.shape}")
             
         
+    def aggregate_parameters_fft(self):
+        assert (len(self.uploaded_models) > 0)
+
+        self.global_model = copy.deepcopy(self.uploaded_models[0])
+        for param in self.global_model.parameters():
+            param.data.zero_()
+            
+        for w, client_model in zip(self.uploaded_weights, self.uploaded_models):
+            
+            if self.uniform_weight is True:
+                w = 1.0
+            
+            self.add_parameters_fft(w, client_model)
+            
+    def add_parameters_fft(self, w, client_model):
+        for server_param, client_param in zip(self.global_model.parameters(), client_model.parameters()):
+            server_param.data += client_param.data.clone() * w
     
     # ------------------------------------------------------------
     

@@ -1,3 +1,19 @@
+# PFLlib: Personalized Federated Learning Algorithm Library
+# Copyright (C) 2021  Jianqing Zhang
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import time
 import copy
@@ -8,8 +24,9 @@ from threading import Thread
 import statistics
 import torch
 import os
+from utils.data_utils import read_client_data_clip
 
-
+from flcore.trainmodel.clip_model import *
 
 
 class FedVmLc(Server):
@@ -19,18 +36,19 @@ class FedVmLc(Server):
         # select slow clients
         self.set_slow_clients()
         
-#         print(f'args.model: {args.model}')
+        self.class_names = args.class_names
         
-        self.clip_model_object = args.model
+        self.clip_model_object = CLIPModelWithVisionModelLinearClassifier(model_id=args.model_id, home_dir=args.home_dir, num_classes=args.num_classes,
+                                                        dataset=args.dataset, class_names=self.class_names, device=args.device).to(args.device)
         
         self.global_model_vm = copy.deepcopy(self.clip_model_object.vm)    # Image Encoder 
         
         self.global_model_lc = copy.deepcopy(self.clip_model_object.lc)    # Linear classifier model
         
-        
-        # print(f'args.global_model: {self.global_model}')
+        self.processor = self.clip_model_object.processor
         
         self.pfl = args.personalized_fl
+        self.uniform_weight = args.uniform_weight
         
         self.set_clients(clientVMLC)
 
@@ -39,6 +57,23 @@ class FedVmLc(Server):
 
         # self.load_model()
         self.Budget = []
+        
+        
+    def set_clients(self, clientObj):
+        for i, train_slow, send_slow in zip(range(self.num_clients), self.train_slow_clients, self.send_slow_clients):
+            train_data = read_client_data_clip(self.dataset, i, self.processor, self.class_names, self.device, is_train=True)
+            if self.pfl:
+                test_data = read_client_data_clip(self.dataset, i, self.processor, self.class_names, self.device, is_train=False)
+            else:
+                test_data = read_client_data_clip(self.dataset, 0, self.processor, self.class_names, self.device, is_train=False)
+            
+            client = clientObj(self.args, 
+                            id=i, 
+                            train_samples=len(train_data), 
+                            test_samples=len(test_data), 
+                            train_slow=train_slow, 
+                            send_slow=send_slow)
+            self.clients.append(client)
 
 
     def train(self):
@@ -176,9 +211,9 @@ class FedVmLc(Server):
             
             global_lc_params = self.global_model_lc
             
-            client.set_parameters(global_vm_params)
+            client.set_vm_parameters(global_vm_params)
             
-            client.set_parameters(global_lc_params)
+            client.set_lc_parameters(global_lc_params)
 
             client.send_time_cost['num_rounds'] += 1
             client.send_time_cost['total_cost'] += 2 * (time.time() - start_time)
@@ -192,8 +227,8 @@ class FedVmLc(Server):
             self.selected_clients, int((1-self.client_drop_rate) * self.current_num_join_clients))
 
         self.uploaded_weights = []
-        self.uploaded_models_vm = []
         
+        self.uploaded_models_vm = []
         self.uploaded_models_lc = []
         
         tot_samples = 0
@@ -229,14 +264,14 @@ class FedVmLc(Server):
         if not os.path.exists(model_path):
             os.makedirs(model_path)
         model_path = os.path.join(model_path, self.algorithm + "_server" + ".pt")
-        torch.save(self.global_model, model_path)
+        torch.save(self.global_model_vm, model_path)
         
     def save_global_model_lc(self):
         model_path = os.path.join("model_lc", self.dataset)
         if not os.path.exists(model_path):
             os.makedirs(model_path)
         model_path = os.path.join(model_path, self.algorithm + "_server" + ".pt")
-        torch.save(self.global_model, model_path)
+        torch.save(self.global_model_lc, model_path)
         
     def aggregate_parameters_vm(self):
         assert (len(self.uploaded_models_vm) > 0)
@@ -246,6 +281,10 @@ class FedVmLc(Server):
             param.data.zero_()
             
         for w, client_model in zip(self.uploaded_weights, self.uploaded_models_vm):
+            
+            if self.uniform_weight is True:
+                w = 1.0
+            
             self.add_parameters_vm(w, client_model)
             
     def aggregate_parameters_lc(self):
@@ -256,6 +295,10 @@ class FedVmLc(Server):
             param.data.zero_()
             
         for w, client_model in zip(self.uploaded_weights, self.uploaded_models_lc):
+            
+            if self.uniform_weight is True:
+                w = 1.0
+            
             self.add_parameters_lc(w, client_model)
             
     def add_parameters_vm(self, w, client_model):

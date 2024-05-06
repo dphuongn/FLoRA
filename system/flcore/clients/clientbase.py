@@ -1,3 +1,19 @@
+# PFLlib: Personalized Federated Learning Algorithm Library
+# Copyright (C) 2021  Jianqing Zhang
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import copy
 import torch
@@ -16,7 +32,7 @@ class Client(object):
     """
 
     def __init__(self, args, id, train_samples, test_samples, **kwargs):
-        self.model = copy.deepcopy(args.model)
+        # self.model = copy.deepcopy(args.model)
         self.algorithm = args.algorithm
         self.dataset = args.dataset
         self.device = args.device
@@ -32,10 +48,10 @@ class Client(object):
 
         # check BatchNorm
         self.has_BatchNorm = False
-        for layer in self.model.children():
-            if isinstance(layer, nn.BatchNorm2d):
-                self.has_BatchNorm = True
-                break
+        # for layer in self.model.children():
+        #     if isinstance(layer, nn.BatchNorm2d):
+        #         self.has_BatchNorm = True
+        #         break
 
         self.train_slow = kwargs['train_slow']
         self.send_slow = kwargs['send_slow']
@@ -46,11 +62,11 @@ class Client(object):
         self.dp_sigma = args.dp_sigma
 
         self.loss = nn.CrossEntropyLoss()
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate)
-        self.learning_rate_scheduler = torch.optim.lr_scheduler.ExponentialLR(
-            optimizer=self.optimizer, 
-            gamma=args.learning_rate_decay_gamma
-        )
+        # self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate)
+        # self.learning_rate_scheduler = torch.optim.lr_scheduler.ExponentialLR(
+        #     optimizer=self.optimizer, 
+        #     gamma=args.learning_rate_decay_gamma
+        # )
         self.learning_rate_decay = args.learning_rate_decay
 
 
@@ -67,6 +83,8 @@ class Client(object):
         return DataLoader(test_data, batch_size, drop_last=False, shuffle=True)
         
     def set_parameters(self, model):
+        print(f'model: {model}')
+        print(f'self.model: {self.model}')
         for new_param, old_param in zip(model.parameters(), self.model.parameters()):
             old_param.data = new_param.data.clone()
 

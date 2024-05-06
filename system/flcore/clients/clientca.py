@@ -33,18 +33,21 @@ from torch.utils.data import Subset
 from flcore.trainmodel.clip_model import *
 
 
-class clientLC(Client):
+class clientCA(Client):
     def __init__(self, args, id, train_samples, test_samples, **kwargs):
         super().__init__(args, id, train_samples, test_samples, **kwargs)
         
-        self.class_names = args.class_names
+        self.ca_params = args.ca_params
         
-        self.clip_model_object = CLIPModelWithLinearClassifier(model_id=args.model_id, home_dir=args.home_dir, num_classes=args.num_classes, 
-                                                        dataset=args.dataset, class_names=self.class_names, device=args.device).to(args.device)
+        print(f'self.ca_params: {self.ca_params}')
+        
+        self.clip_model_object = CLIPModelWithClipAdapter(model_id=args.model_id, home_dir=args.home_dir, ca_params=self.ca_params).to(args.device)
         
         self.clip_model = self.clip_model_object.model
         
-        self.lc = self.clip_model_object.lc
+        self.ca = self.clip_model_object.ca
+        
+        self.ratio = self.ca_params['ratio']
         
         self.processor = self.clip_model_object.processor
         
@@ -53,7 +56,9 @@ class clientLC(Client):
         self.train_data_fraction = args.train_data_fraction
         self.test_data_fraction = args.test_data_fraction
         
-        self.optimizer = torch.optim.Adam([p for name, p in self.lc.named_parameters() if p.requires_grad], lr=self.learning_rate,betas=(0.9,0.98),eps=1e-6,weight_decay=0.2)
+        self.class_names = args.class_names
+        
+        self.optimizer = torch.optim.Adam([p for name, p in self.ca.named_parameters() if p.requires_grad], lr=self.learning_rate,betas=(0.9,0.98),eps=1e-6,weight_decay=0.2)
         
         
         # print(f"print LoRA parameters before training:")
@@ -100,7 +105,7 @@ class clientLC(Client):
         trainloader = self.load_train_data()
         # self.clip_model.to(self.device)
         self.clip_model.train()
-        self.lc.train()
+        self.ca.train()
 
         # differential privacy
         if self.privacy:
@@ -115,35 +120,72 @@ class clientLC(Client):
             max_local_epochs = np.random.randint(1, max_local_epochs // 2)
 
         for epoch in range(max_local_epochs):
+                
             with tqdm(trainloader, total=len(trainloader)) as pbar:  # Initialize pbar here
                 for batch in pbar:      
 
                     images, target, texts = batch
-                    
-                    target = target.to(self.device)
+
+                    # texts is a dictionary, extract the required tensors
+                    input_ids = texts['input_ids'].squeeze(1) # Remove the extra dimension
+                    attention_mask = texts['attention_mask'].squeeze(1) # Remove the extra dimension
+
 
                     image_features = self.clip_model.get_image_features(images).float()
+
+                    text_features = self.clip_model.get_text_features(input_ids=input_ids, 
+                                                                attention_mask=attention_mask).float()
                     
-                    # added LC-----------------------------------------
-                    logits, probas = self.lc(image_features)
-                    #--------------------------------------------------
-        
-        
+                    
+                    # added adapter---------------------------------------------
+                    image_features_adapter = self.ca(image_features)
+                    image_features = self.ratio * image_features_adapter + (1 - self.ratio) * image_features
+                    #-----------------------------------------------------------
+
+
+                    image_features = image_features / \
+                        image_features.norm(dim=1, keepdim=True)
+                    text_features = text_features / \
+                        text_features.norm(dim=1, keepdim=True)
+
+                    # logit_scale = model.model.logit_scale.exp()
+                    logit_scale = self.clip_model.state_dict()['logit_scale'].exp()
+                    logits_per_image = logit_scale * image_features @ text_features.t()
+                    logits_per_text = logits_per_image.t()
+
+
                     # Compute loss
-                    loss = self.loss(logits, target)
+                    ground_truth = torch.arange(len(images), dtype=torch.long, device=self.device)
+                    total_loss = (self.loss(logits_per_image, ground_truth) + self.loss(logits_per_text, ground_truth))/2
 
                     # Backward pass
                     self.optimizer.zero_grad()
-                    loss.backward()
+                    total_loss.backward()
                     self.optimizer.step()
 
-                    pbar.set_description(f"Epoch {epoch+1}/{self.local_epochs}, Loss: {loss.item():.4f}")
+                    pbar.set_description(f"Epoch {epoch+1}/{self.local_epochs}, Loss: {total_loss.item():.4f}")
 
         end = time.time()
         elapsed = end-start
         print(f"Time elapsed {elapsed/60:.2f} min")
         print(f"Memory used: {torch.cuda.max_memory_reserved() / 1e9:.02f} GB")
+
         
+        # print LoRA parameters
+        # print(f"print LoRA parameters after training:")
+        # for name, param in self.clip_model.named_parameters():
+        #     # Check if the parameter's parent module is a LoRALayer
+        #     if 'lora' in name:
+        #         print(f"{name}: {param.data}")
+            
+            
+            
+            
+
+        # self.clip_model.cpu()
+
+        # if self.learning_rate_decay:
+        #     self.learning_rate_scheduler.step()
 
         self.train_time_cost['num_rounds'] += 1
         self.train_time_cost['total_cost'] += elapsed
@@ -169,7 +211,43 @@ class clientLC(Client):
         # self.clip_modelmodel = self.load_model('model')
         # self.clip_model.to(self.device)
         self.clip_model.eval()
-        self.lc.eval()
+        self.ca.eval()
+
+#         test_acc = 0
+#         test_num = 0
+#         y_prob = []
+#         y_true = []
+        
+#         with torch.no_grad():
+#             for x, y in testloaderfull:
+#                 if type(x) == type([]):
+#                     x[0] = x[0].to(self.device)
+#                 else:
+#                     x = x.to(self.device)
+#                 y = y.to(self.device)
+                                
+#                 output = self.model(x)
+                
+#                 test_acc += (torch.sum(torch.argmax(output, dim=1) == y)).item()
+#                 test_num += y.shape[0]
+
+#                 y_prob.append(output.detach().cpu().numpy())
+#                 nc = self.num_classes
+#                 if self.num_classes == 2:
+#                     nc += 1
+#                 lb = label_binarize(y.detach().cpu().numpy(), classes=np.arange(nc))
+#                 if self.num_classes == 2:
+#                     lb = lb[:, :2]
+#                 y_true.append(lb)
+                
+            
+#         y_prob = np.concatenate(y_prob, axis=0)
+#         y_true = np.concatenate(y_true, axis=0)
+
+#         auc = metrics.roc_auc_score(y_true, y_prob, average='micro')
+        
+        # return test_acc, test_num, auc
+                
                 
         with torch.no_grad():
             top1_1, top5_1, test_num = 0., 0., 0.
@@ -183,17 +261,17 @@ class clientLC(Client):
                 # predict
                 image_features = self.clip_model.get_image_features(images)
                 
-                # added LC-----------------------------------------
-                logits, probas = self.lc(image_features)
+                # added adapter------------------------------------
+                image_features_adapter = self.ca(image_features)
+                image_features = self.ratio * image_features_adapter + (1 - self.ratio) * image_features
                 #--------------------------------------------------
                 
-                # image_features /= image_features.norm(dim=-1, keepdim=True)
+                image_features /= image_features.norm(dim=-1, keepdim=True)
 
                 # measure accuracy of 1 template
-                # zeroshot_weights_1 = return_zeroshot_weight(self.dataset, self.clip_model, self.processor, self.class_names, self.device)
-                # logits = 100. * image_features @ zeroshot_weights_1
+                zeroshot_weights_1 = return_zeroshot_weight(self.dataset, self.clip_model, self.processor, self.class_names, self.device)
+                logits = 100. * image_features @ zeroshot_weights_1
                 # acc1, acc5 = accuracy(logits, target, topk=(1, 5))
-                # acc1, acc5 = accuracy(probas, target, topk=(1, 5))
                 acc1 = accuracy(logits, target, topk=(1,))
                 top1_1 += acc1[0]
                 # top5_1 += acc5
@@ -209,7 +287,7 @@ class clientLC(Client):
         return top1_1, test_num, 0
     
     def set_parameters(self, model):
-        self.clip_model_object.set_lc_parameters(model)
+        self.clip_model_object.set_ca_parameters(model)
     
     # ------------------------------------------------------------
     
