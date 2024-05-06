@@ -18,7 +18,7 @@
 import time
 import copy
 import random
-from system.flcore.clients.clientdylora import clientDYLORA
+from flcore.clients.clientdylora import clientDYLORA
 from flcore.servers.serverbase import Server
 from threading import Thread
 import statistics

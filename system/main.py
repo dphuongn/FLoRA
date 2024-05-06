@@ -33,7 +33,7 @@ from flcore.servers.serverlc import FedLc
 from flcore.servers.servervmlc import FedVmLc
 from flcore.servers.serverprompt import FedPrompt
 from flcore.servers.serverca import FedCa
-from system.flcore.servers.serverdylora import FedDyLora
+from flcore.servers.serverdylora import FedDyLora
 
 
 from flcore.trainmodel.clip_model import *
