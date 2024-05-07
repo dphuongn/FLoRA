@@ -12,15 +12,20 @@ dependencies:
   - h5py
   - seaborn
   - matplotlib
-  - transformers
-  - datasets
-  - tqdm
+  - click
   - pip:
     - torch
     - torchvision
+    - torchtext
     - calmsize
     - memory-profiler
     - opacus
     - portalocker
     - cvxpy
+    - higher
+    - diffusers
+    - accelerate
     - gdown
+    - transformers
+    - datasets
+    - tqdm
