@@ -6,8 +6,7 @@ This is the implementation of our paper FLoRA: Enhancing Vision-Language Models 
 ## Environments
 With the installed [conda](https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh), we can run this platform in a conda virtual environment called *flora*. 
 ```
-conda env create -f env_linux.yaml # for Linux
-conda env create -f env_windows.yaml # for Windows
+conda env create -f env_latest.yaml # for Linux or Windows with CUDA >= 12.1
 conda activate flora
 ```
 
