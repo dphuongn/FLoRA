@@ -13,10 +13,11 @@ dependencies:
   - seaborn
   - matplotlib
   - click
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.1
   - pip:
-    - torch
-    - torchvision
-    - torchaudio
     - calmsize
     - memory-profiler
     - opacus
