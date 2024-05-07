@@ -16,7 +16,7 @@ dependencies:
   - pip:
     - torch
     - torchvision
-    - torchtext
+    - torchaudio
     - calmsize
     - memory-profiler
     - opacus
