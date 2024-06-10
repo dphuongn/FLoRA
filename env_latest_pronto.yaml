@@ -1,4 +1,4 @@
-name: flora
+name: flora_pronto
 channels:
   - pytorch
   - nvidia
@@ -16,7 +16,7 @@ dependencies:
   - pytorch
   - torchvision
   - torchaudio
-  - pytorch-cuda=12.1
+  - pytorch-cuda=11.8
   - pip:
     - calmsize
     - memory-profiler

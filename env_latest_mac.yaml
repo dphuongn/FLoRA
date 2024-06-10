@@ -1,7 +1,6 @@
-name: flora
+name: flora_mac
 channels:
   - pytorch
-  - nvidia
   - defaults
 dependencies:
   - pip
@@ -16,7 +15,6 @@ dependencies:
   - pytorch
   - torchvision
   - torchaudio
-  - pytorch-cuda=12.1
   - pip:
     - calmsize
     - memory-profiler
