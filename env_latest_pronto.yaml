@@ -17,6 +17,9 @@ dependencies:
   - torchvision
   - torchaudio
   - pytorch-cuda=11.8
+  - jupyterlab
+  - notebook
+  - ipywidgets
   - pip:
     - calmsize
     - memory-profiler
