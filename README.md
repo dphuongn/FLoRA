@@ -86,7 +86,7 @@ This code is heavily inspired from the popoular federated learning project [PFLl
 
 - FLoRA
     ```bibtex
-    @inproceedings{nguyen2025flora,
+    @article{nguyen2025flora,
         title={FLoRA: Enhancing Vision-Language Models with Parameter-Efficient Federated Learning},
         author={Nguyen, Duy Phuong and Muñoz, J. Pablo and Jannesari, Ali},
         journal = {arXiv preprint arXiv:2404.15182},
