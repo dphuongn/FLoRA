@@ -81,3 +81,14 @@ Feel free to change parameters to your desired experiments. If you use the same 
 # Acknowledgement
 
 This code is heavily inspired from the popoular federated learning project [PFLlib](https://github.com/TsingZ0/PFLlib). Thank you for their wonderful work!
+
+# Citation
+
+- FLoRA
+    ```bibtex
+    @inproceedings{nguyen2025flora,
+        title={FLoRA: Enhancing Vision-Language Models with Parameter-Efficient Federated Learning},
+        author={Nguyen, Duy Phuong and Muñoz, J. Pablo and Jannesari, Ali},
+        journal = {arXiv preprint arXiv:2404.15182},
+        year = {2014},
+    }
