@@ -90,5 +90,5 @@ This code is heavily inspired from the popoular federated learning project [PFLl
         title={FLoRA: Enhancing Vision-Language Models with Parameter-Efficient Federated Learning},
         author={Nguyen, Duy Phuong and Muñoz, J. Pablo and Jannesari, Ali},
         journal = {arXiv preprint arXiv:2404.15182},
-        year = {2014},
+        year = {2024},
     }
